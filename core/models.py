@@ -4,7 +4,10 @@
 """
 
 import numpy as np
-
+import os
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
 
 class RoadExcitation:
     """ISO 8608 随机路面激励生成器"""

@@ -29,7 +29,6 @@ class UniformStiffnessWindow(QMainWindow):
         self.setWindowTitle("弹簧刚度求解器(频率约束) | Stiffness Finder with Frequency Constraints")
         self.setMinimumSize(1200, 800)
 
-        # 默认参数
         self.default_params = DEFAULT_VEHICLE_PARAMS.copy()
         self.param_inputs = {}
         self.tire_freq_labels = {}
@@ -61,19 +60,15 @@ class UniformStiffnessWindow(QMainWindow):
         # 参数区域
         params_layout = QHBoxLayout()
 
-        # 左侧：车身参数
         vehicle_group = self.create_vehicle_params()
         params_layout.addWidget(vehicle_group)
 
-        # 轮胎参数
         tire_group = self.create_tire_params()
         params_layout.addWidget(tire_group)
 
-        # 中间：频率约束
         freq_group = self.create_frequency_params()
         params_layout.addWidget(freq_group)
 
-        # 右侧：仿真参数
         sim_group = self.create_sim_params()
         params_layout.addWidget(sim_group)
 
@@ -112,9 +107,14 @@ class UniformStiffnessWindow(QMainWindow):
         self.clear_btn.clicked.connect(self.clear_results)
         btn_layout.addWidget(self.clear_btn)
 
+        self.send_btn = QPushButton("📤 发送最优刚度到弹簧选型")
+        self.send_btn.setObjectName("sendButton")
+        self.send_btn.setEnabled(False)
+        self.send_btn.clicked.connect(self._send_to_spring_selector)
+        btn_layout.addWidget(self.send_btn)
+
         layout.addLayout(btn_layout)
 
-        # 进度
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -131,20 +131,48 @@ class UniformStiffnessWindow(QMainWindow):
         results_layout = QVBoxLayout(results_group)
 
         self.results_table = QTableWidget()
-        self.results_table.setColumnCount(4)
+        self.results_table.setColumnCount(5)
         self.results_table.setHorizontalHeaderLabels([
             "弹簧刚度 k_s (N/m)", "车身频率 (Hz)",
-            "质心加速度 RMS (m/s²)", "舒适性评价"
+            "动挠度峰值 (mm)", "质心加速度 RMS (m/s²)", "舒适性评价"
         ])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.setAlternatingRowColors(True)
+        self.results_table.setMinimumHeight(220)
         results_layout.addWidget(self.results_table)
 
+        # 汇总标签（含结果数量显示）
         self.summary_label = QLabel("")
         self.summary_label.setObjectName("summary")
         results_layout.addWidget(self.summary_label)
 
         layout.addWidget(results_group)
+
+    def _send_to_spring_selector(self):
+        """将最优刚度发送到弹簧选型窗口"""
+        if not hasattr(self, '_best_result') or self._best_result is None:
+            return
+
+        from utils.shared_state import shared_state
+        base_params = self.get_base_params()
+
+        shared_state.set_stiffness(
+            k_min=self.calculated_k_range[0],
+            k_max=self.calculated_k_range[1],
+            k_optimal=self._best_result['k_s'],
+            source=f"统一刚度搜索 | 路面{base_params['road_class']} | "
+                   f"{base_params['vehicle_speed']}m/s | "
+                   f"最优k={self._best_result['k_s']:.0f}N/m "
+                   f"RMS={self._best_result['rms']:.3f}m/s²",
+            vehicle_mass=base_params.get('m_b'),
+            road_class=base_params['road_class'],
+            vehicle_speed=base_params['vehicle_speed']
+        )
+        QMessageBox.information(
+            self, "已发送",
+            f"最优刚度 {self._best_result['k_s']:.0f} N/m "
+            f"已发送到弹簧选型系统"
+        )
 
     def create_vehicle_params(self):
         """车身参数组"""
@@ -195,7 +223,6 @@ class UniformStiffnessWindow(QMainWindow):
         group.setMinimumHeight(300)
         layout = QGridLayout(group)
 
-        # 表头
         layout.addWidget(QLabel(""), 0, 0)
         header_m = QLabel("质量(kg)")
         header_m.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -217,7 +244,6 @@ class UniformStiffnessWindow(QMainWindow):
         for i, (suffix, label, m_default, k_default) in enumerate(wheels):
             layout.addWidget(QLabel(label), i + 1, 0)
 
-            # 质量
             m_edit = QLineEdit(str(m_default))
             m_edit.setFixedWidth(65)
             m_edit.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -225,7 +251,6 @@ class UniformStiffnessWindow(QMainWindow):
             self.param_inputs[f'm_w{suffix}'] = m_edit
             layout.addWidget(m_edit, i + 1, 1)
 
-            # 刚度
             k_edit = QLineEdit(str(k_default))
             k_edit.setFixedWidth(65)
             k_edit.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -233,7 +258,6 @@ class UniformStiffnessWindow(QMainWindow):
             self.param_inputs[f'k_t{suffix}'] = k_edit
             layout.addWidget(k_edit, i + 1, 2)
 
-            # 频率显示
             freq_lbl = QLabel("--")
             freq_lbl.setObjectName("tireFreq")
             freq_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -245,49 +269,67 @@ class UniformStiffnessWindow(QMainWindow):
     def create_frequency_params(self):
         """频率约束参数组"""
         group = QGroupBox("频率约束")
+        group.setMinimumWidth(280)
+        group.setMinimumHeight(300)          # ★ 只加高这一个
         layout = QGridLayout(group)
+        layout.setVerticalSpacing(8)        # ★ 行间距让内容不拥挤
+        layout.setColumnMinimumWidth(0, 110)
+        layout.setColumnMinimumWidth(1, 90)
 
-        # 车身频率约束
+        def _freq_edit(default):
+            e = QLineEdit(default)
+            e.setMinimumWidth(90)
+            e.textChanged.connect(self.update_calculated_values)
+            return e
+
         layout.addWidget(QLabel("车身频率最小"), 0, 0)
-        self.f_body_min = QLineEdit("1.0")
-        self.f_body_min.setFixedWidth(80)
-        self.f_body_min.textChanged.connect(self.update_calculated_values)
+        self.f_body_min = _freq_edit("1.0")
         layout.addWidget(self.f_body_min, 0, 1)
         layout.addWidget(QLabel("Hz"), 0, 2)
 
         layout.addWidget(QLabel("车身频率最大"), 1, 0)
-        self.f_body_max = QLineEdit("1.5")
-        self.f_body_max.setFixedWidth(80)
-        self.f_body_max.textChanged.connect(self.update_calculated_values)
+        self.f_body_max = _freq_edit("1.5")
         layout.addWidget(self.f_body_max, 1, 1)
         layout.addWidget(QLabel("Hz"), 1, 2)
 
-        # 分隔
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setObjectName("separator")
         layout.addWidget(line, 2, 0, 1, 3)
 
-        # 轮胎频率约束（用于验证）
         layout.addWidget(QLabel("轮胎频率最小"), 3, 0)
-        self.f_tire_min = QLineEdit("10")
-        self.f_tire_min.setFixedWidth(80)
-        self.f_tire_min.textChanged.connect(self.update_calculated_values)
+        self.f_tire_min = _freq_edit("10")
         layout.addWidget(self.f_tire_min, 3, 1)
         layout.addWidget(QLabel("Hz"), 3, 2)
 
         layout.addWidget(QLabel("轮胎频率最大"), 4, 0)
-        self.f_tire_max = QLineEdit("15")
-        self.f_tire_max.setFixedWidth(80)
-        self.f_tire_max.textChanged.connect(self.update_calculated_values)
+        self.f_tire_max = _freq_edit("15")
         layout.addWidget(self.f_tire_max, 4, 1)
         layout.addWidget(QLabel("Hz"), 4, 2)
 
-        # 搜索点数
         layout.addWidget(QLabel("搜索点数"), 5, 0)
-        self.n_points = QLineEdit("15")
-        self.n_points.setFixedWidth(80)
+        self.n_points = QLineEdit("30")
+        self.n_points.setMinimumWidth(90)
         layout.addWidget(self.n_points, 5, 1)
+        layout.addWidget(QLabel("（全部显示）"), 5, 2)
+
+        # ── 悬架动挠度约束 ──
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.Shape.HLine)
+        line2.setObjectName("separator")
+        layout.addWidget(line2, 6, 0, 1, 3)
+
+        from PyQt6.QtWidgets import QCheckBox
+        self.defl_check = QCheckBox("启用动挠度约束")
+        self.defl_check.setChecked(True)
+        self.defl_check.toggled.connect(lambda c: self.defl_limit_edit.setEnabled(c))
+        layout.addWidget(self.defl_check, 7, 0, 1, 2)
+
+        layout.addWidget(QLabel("|zs−zu|max ≤"), 8, 0)
+        self.defl_limit_edit = QLineEdit("80")   # ★ 单位 mm
+        self.defl_limit_edit.setMinimumWidth(90)
+        layout.addWidget(self.defl_limit_edit, 8, 1)
+        layout.addWidget(QLabel("mm"), 8, 2)     # ★ 单位改 mm
 
         return group
 
@@ -315,12 +357,12 @@ class UniformStiffnessWindow(QMainWindow):
         layout.addWidget(self.duration_input, 2, 1)
         layout.addWidget(QLabel("s"), 2, 2)
 
-        # 说明
         info = QLabel(
             "车身频率 1-1.5Hz: 舒适性\n"
             "轮胎频率 10-15Hz: 抓地力\n"
             "路面: A优 B良 C一般 D差\n"
-            "杠杆比: >1放大 =1直连 <1缩小"
+            "杠杆比: >1放大 =1直连 <1缩小\n"
+            "⚠ 点数越多计算越慢"
         )
         info.setObjectName("info")
         layout.addWidget(info, 3, 0, 1, 3)
@@ -371,6 +413,12 @@ class UniformStiffnessWindow(QMainWindow):
                 padding: 12px 20px; font-size: 13px; color: white;
             }
             QPushButton#clearButton:hover { background-color: #64748b; }
+            QPushButton#sendButton {
+                background-color: #059669; border: none; border-radius: 6px;
+                padding: 12px 25px; font-size: 13px; font-weight: bold; color: white;
+            }
+            QPushButton#sendButton:hover { background-color: #047857; }
+            QPushButton#sendButton:disabled { background-color: #475569; }
             QProgressBar {
                 border: none; border-radius: 4px; background-color: #1e293b; height: 20px;
             }
@@ -401,11 +449,9 @@ class UniformStiffnessWindow(QMainWindow):
             f_tire_min = float(self.f_tire_min.text())
             f_tire_max = float(self.f_tire_max.text())
 
-            # 计算刚度范围
             k_min, k_max = calc_stiffness_range_from_frequency(m_b, f_body_min, f_body_max)
             self.k_range_label.setText(f"{k_min:.0f} ~ {k_max:.0f} N/m")
 
-            # 计算每个轮胎的频率
             all_valid = True
             invalid_wheels = []
 
@@ -426,7 +472,6 @@ class UniformStiffnessWindow(QMainWindow):
                     self.tire_freq_labels[suffix].setText("--")
                     all_valid = False
 
-            # 更新警告
             if all_valid:
                 self.tire_warning_label.setText("✓ 所有轮胎频率满足约束")
                 self.tire_warning_label.setStyleSheet("color: #4ade80;")
@@ -434,7 +479,6 @@ class UniformStiffnessWindow(QMainWindow):
                 self.tire_warning_label.setText(f"⚠ 轮胎频率超出范围: {', '.join(invalid_wheels)}")
                 self.tire_warning_label.setStyleSheet("color: #f87171;")
 
-            # 保存计算结果
             self.calculated_k_range = (k_min, k_max)
 
         except ValueError:
@@ -477,8 +521,10 @@ class UniformStiffnessWindow(QMainWindow):
 
         try:
             n_points = int(self.n_points.text())
+            if n_points < 2:
+                raise ValueError
         except ValueError:
-            QMessageBox.warning(self, "输入错误", "搜索点数必须为整数")
+            QMessageBox.warning(self, "输入错误", "搜索点数必须为 ≥2 的整数")
             return
 
         self.search_btn.setEnabled(False)
@@ -488,8 +534,19 @@ class UniformStiffnessWindow(QMainWindow):
 
         base_params = self.get_base_params()
 
+        # ★ 读取动挠度约束（输入单位 mm，内部换算为 m）
+        defl_limit = None
+        if self.defl_check.isChecked():
+            try:
+                defl_limit = float(self.defl_limit_edit.text()) / 1000.0
+            except ValueError:
+                QMessageBox.warning(self, "输入错误", "动挠度限制值无效")
+                self.search_btn.setEnabled(True)
+                self.search_btn.setText("开始扫描RMS")
+                return
+
         self.search_thread = UniformStiffnessSearchThread(
-            base_params, self.calculated_k_range, n_points
+            base_params, self.calculated_k_range, n_points, defl_limit
         )
         self.search_thread.progress_updated.connect(self.update_progress)
         self.search_thread.search_finished.connect(self.display_results)
@@ -502,26 +559,43 @@ class UniformStiffnessWindow(QMainWindow):
         self.status_label.setText(status)
 
     def display_results(self, results):
-        """显示结果"""
+        """显示结果 - 全量显示，不限制行数"""
         self.results_table.setRowCount(len(results))
 
+        defl_limit = None
+        if self.defl_check.isChecked():
+            try:
+                defl_limit = float(self.defl_limit_edit.text()) / 1000.0
+            except ValueError:
+                pass
+
         for i, r in enumerate(results):
-            # k_s
             item_k = QTableWidgetItem(f"{r['k_s']:.0f}")
             item_k.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(i, 0, item_k)
 
-            # 车身频率
             item_f = QTableWidgetItem(f"{r['f_body']:.3f}")
             item_f.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(i, 1, item_f)
 
-            # RMS
+            # ★ 动挠度列（着色：超限红，接近橙，正常绿）
+            defl = r.get('max_defl', 0.0)
+            item_d = QTableWidgetItem(f"{defl*1000:.1f} mm")
+            item_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if defl_limit:
+                ratio = defl / defl_limit
+                if ratio > 1.0:
+                    item_d.setForeground(QColor("#f87171"))
+                elif ratio > 0.85:
+                    item_d.setForeground(QColor("#fbbf24"))
+                else:
+                    item_d.setForeground(QColor("#4ade80"))
+            self.results_table.setItem(i, 2, item_d)
+
             item_rms = QTableWidgetItem(f"{r['rms']:.4f}")
             item_rms.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.results_table.setItem(i, 2, item_rms)
+            self.results_table.setItem(i, 3, item_rms)
 
-            # 舒适性评价
             rms = r['rms']
             if rms < 0.315:
                 rating, color = "舒适", QColor("#4ade80")
@@ -537,21 +611,27 @@ class UniformStiffnessWindow(QMainWindow):
             item_rating = QTableWidgetItem(rating)
             item_rating.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item_rating.setForeground(color)
-            self.results_table.setItem(i, 3, item_rating)
+            self.results_table.setItem(i, 4, item_rating)
 
-        # 统计
         if results:
-            rms_vals = [r['rms'] for r in results]
-            k_vals = [r['k_s'] for r in results]
+            rms_vals  = [r['rms'] for r in results]
+            k_vals    = [r['k_s'] for r in results]
+            defl_vals = [r.get('max_defl', 0) for r in results]
             min_rms_idx = np.argmin(rms_vals)
 
+            self._best_result = results[min_rms_idx]
+            self.send_btn.setEnabled(True)
+
+            defl_info = ""
+            if defl_limit:
+                defl_info = f" | 挠度: {min(defl_vals)*1000:.1f}~{max(defl_vals)*1000:.1f} mm (限制 {defl_limit*1000:.0f} mm)"
+
             self.summary_label.setText(
-                f"扫描完成 | RMS范围: {min(rms_vals):.3f} ~ {max(rms_vals):.3f} m/s² | "
-                f"最优: k_s={k_vals[min_rms_idx]:.0f}N/m 时 RMS={rms_vals[min_rms_idx]:.3f}m/s²"
+                f"扫描完成"
             )
             self.summary_label.setStyleSheet("color: #4ade80;")
         else:
-            self.summary_label.setText("未获得有效结果")
+            self.summary_label.setText("⚠ 所有方案均超出动挠度限制，请放宽约束或调整刚度范围")
             self.summary_label.setStyleSheet("color: #f87171;")
 
         self.search_btn.setEnabled(True)

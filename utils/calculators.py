@@ -2,7 +2,10 @@
 计算工具模块
 Calculation Utilities
 """
-
+import os
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
 import numpy as np
 from scipy.integrate import odeint
 from core.models import RoadExcitation, SevenDOFModel
@@ -184,3 +187,96 @@ def get_comfort_rating(a_rms):
         return "非常不舒适 Very Uncomfortable", "#f87171"
     else:
         return "极不舒适 Extremely Uncomfortable", "#ef4444"
+# ==================== 新增：弹簧选型计算函数 ====================
+
+import math
+
+
+def wahl_factor(C: float) -> float:
+    """
+    Wahl 应力修正系数
+    Args:
+        C: 旋绕比 D/d
+    Returns:
+        Wahl系数
+    """
+    return (4 * C - 1) / (4 * C - 4) + 0.615 / C
+
+
+def calc_spring_candidates(
+    target_k_nmm: float,
+    delta_max_mm: float,
+    mass_kg: float,
+    zeta: float,
+    end_coeff: float,
+    G: float,
+    tau_allow: float,
+    safety_factor: float = 1.25
+) -> list:
+    """
+    计算弹簧候选方案
+
+    Args:
+        target_k_nmm : 目标刚度 (N/mm)
+        delta_max_mm : 最大压缩量 (mm)
+        mass_kg      : 等效质量 (kg)
+        zeta         : 目标阻尼比
+        end_coeff    : 端部密圈系数 (0.6~1.0)
+        G            : 剪切模量 (MPa)
+        tau_allow    : 许用剪应力 (MPa)
+        safety_factor: 安全系数
+
+    Returns:
+        候选方案列表，每项为字典
+    """
+    wire_dias = [
+        0.5, 0.6, 0.8, 1.0, 1.2, 1.6,
+        2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0
+    ]
+    candidates = []
+
+    for d in wire_dias:
+        for Ci in range(8, 25):
+            C = Ci / 2.0
+            D = C * d
+
+            # 基础有效圈数（不含端部修正）
+            Na_base = (G * d**4) / (8 * D**3 * target_k_nmm)
+            if not (2 <= Na_base <= 30):
+                continue
+
+            Na = round(Na_base * 2) / 2.0
+
+            # 非等距刚度修正
+            k_actual = ((G * d**4) / (8 * D**3 * Na)) / end_coeff
+
+            # 应力校核
+            F_max = target_k_nmm * delta_max_mm
+            Kw = wahl_factor(C)
+            tau = (8 * F_max * D) / (math.pi * d**3) * Kw
+
+            if tau > tau_allow / safety_factor:
+                continue
+
+            margin_pct = (tau_allow - tau) / tau_allow * 100
+
+            # 阻尼系数
+            c_damper = 2 * zeta * math.sqrt(k_actual * 1000 * mass_kg)
+
+            k_deviation = abs(k_actual - target_k_nmm) / target_k_nmm * 100
+
+            candidates.append({
+                'd': d,
+                'D': round(D, 2),
+                'Na': Na,
+                'actual_k': round(k_actual, 2),
+                'tau': round(tau),
+                'margin_pct': round(margin_pct, 1),
+                'c_damper': round(c_damper, 1),
+                'k_deviation': round(k_deviation, 2),
+                'end_coeff': end_coeff,
+                'total_coils': round(Na + 2, 1),
+                'winding_ratio': round(C, 1),
+            })
+
+    return candidates
