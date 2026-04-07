@@ -1,6 +1,7 @@
 """
 前后分离刚度搜索窗口（完整版）
 Separate Stiffness Search Window - Full Version
+单位说明：UI 输入/显示使用 N/mm 和 N·s/mm，内部计算自动换算为 N/m 和 N·s/m
 """
 
 import numpy as np
@@ -28,7 +29,7 @@ class SeparateStiffnessWindow(QMainWindow):
         self.default_params = DEFAULT_VEHICLE_PARAMS.copy()
         self.param_inputs = {}
         self.tire_freq_labels = {}
-        self.calculated_k_sum_range = None
+        self.calculated_k_sum_range = None  # 内部始终存 N/m
         self._best_result = None
 
         self.setup_ui()
@@ -54,34 +55,22 @@ class SeparateStiffnessWindow(QMainWindow):
         layout.addWidget(subtitle)
 
         params_layout = QHBoxLayout()
-
-        vehicle_group = self.create_vehicle_params()
-        params_layout.addWidget(vehicle_group)
-
-        tire_group = self.create_tire_params()
-        params_layout.addWidget(tire_group)
-
-        freq_group = self.create_frequency_params()
-        params_layout.addWidget(freq_group)
-
-        sim_group = self.create_sim_params()
-        params_layout.addWidget(sim_group)
-
+        params_layout.addWidget(self.create_vehicle_params())
+        params_layout.addWidget(self.create_tire_params())
+        params_layout.addWidget(self.create_frequency_params())
+        params_layout.addWidget(self.create_sim_params())
         layout.addLayout(params_layout)
 
         # 计算结果显示
         calc_group = QGroupBox("约束计算结果")
         calc_layout = QGridLayout(calc_group)
-
-        calc_layout.addWidget(QLabel("k_f + k_r 范围:"), 0, 0)
-        self.k_sum_range_label = QLabel("-- ~ -- N/m")
+        calc_layout.addWidget(QLabel("前后刚度范围:"), 0, 0)
+        self.k_sum_range_label = QLabel("-- ~ -- N/mm")    # ← N/mm
         self.k_sum_range_label.setObjectName("calcResult")
         calc_layout.addWidget(self.k_sum_range_label, 0, 1)
-
         self.tire_warning_label = QLabel("")
         self.tire_warning_label.setObjectName("warning")
         calc_layout.addWidget(self.tire_warning_label, 0, 2, 1, 2)
-
         layout.addWidget(calc_group)
 
         # 按钮
@@ -107,14 +96,12 @@ class SeparateStiffnessWindow(QMainWindow):
         self.send_btn.setEnabled(False)
         self.send_btn.clicked.connect(self._send_to_spring_selector)
         btn_layout.addWidget(self.send_btn)
-
         layout.addLayout(btn_layout)
 
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         progress_layout.addWidget(self.progress_bar)
-
         self.status_label = QLabel("就绪")
         self.status_label.setObjectName("status")
         self.status_label.setFixedWidth(250)
@@ -124,12 +111,11 @@ class SeparateStiffnessWindow(QMainWindow):
         # 结果表格
         results_group = QGroupBox("扫描结果 - 前后刚度组合与RMS")
         results_layout = QVBoxLayout(results_group)
-
         self.results_table = QTableWidget()
         self.results_table.setColumnCount(7)
         self.results_table.setHorizontalHeaderLabels([
-            "前刚度 k_f (N/m)", "后刚度 k_r (N/m)", "前后比 k_f/k_r",
-            "车身频率 (Hz)", "动挠度峰值 (mm)", "质心加速度 RMS (m/s²)", "舒适性评价"
+            "前刚度 (N/mm)", "后刚度 (N/mm)", "前后刚度比 ",  # ← N/mm
+            "车身频率 (Hz)", "弹簧变化量峰值 (mm)", "质心加速度 RMS (m/s²)", "舒适性评价"
         ])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.setAlternatingRowColors(True)
@@ -139,7 +125,6 @@ class SeparateStiffnessWindow(QMainWindow):
         self.summary_label = QLabel("")
         self.summary_label.setObjectName("summary")
         results_layout.addWidget(self.summary_label)
-
         layout.addWidget(results_group)
 
     def _send_to_spring_selector(self):
@@ -150,14 +135,14 @@ class SeparateStiffnessWindow(QMainWindow):
         from utils.shared_state import shared_state
         base_params = self.get_base_params()
         best = self._best_result
-        k_optimal = (best['k_f'] + best['k_r']) / 2
+        k_optimal = (best['k_f'] + best['k_r']) / 2  # N/m（内部值）
 
         shared_state.set_stiffness(
             k_min=self.calculated_k_sum_range[0] * 1000,
             k_max=self.calculated_k_sum_range[1] * 1000,
             k_optimal=k_optimal,
             source=f"前后分离搜索 | 路面{base_params['road_class']} | "
-                   f"k_f={best['k_f']:.0f} k_r={best['k_r']:.0f} N/m "
+                   f"k_f={best['k_f']/1000:.3f} k_r={best['k_r']/1000:.3f} N/mm "  # ← N/mm
                    f"比例={best['ratio']:.2f} RMS={best['rms']:.3f}m/s²",
             vehicle_mass=base_params.get('m_b'),
             road_class=base_params['road_class'],
@@ -166,7 +151,7 @@ class SeparateStiffnessWindow(QMainWindow):
         QMessageBox.information(
             self, "已发送",
             f"最优刚度组合已发送\n"
-            f"k_f={best['k_f']:.0f} N/m  k_r={best['k_r']:.0f} N/m"
+            f"k_f={best['k_f']/1000:.3f} N/mm  k_r={best['k_r']/1000:.3f} N/mm"  # ← N/mm
         )
 
     def create_vehicle_params(self):
@@ -176,28 +161,26 @@ class SeparateStiffnessWindow(QMainWindow):
         layout = QGridLayout(group)
 
         params = [
-            ('m_b', '车身质量', 'kg'),
-            ('I_p', '俯仰惯量', 'kg·m²'),
-            ('I_r', '侧倾惯量', 'kg·m²'),
-            ('a', '前轴距离', 'm'),
-            ('b', '后轴距离', 'm'),
-            ('B_f', '前轮距', 'm'),
-            ('B_r', '后轮距', 'm'),
-            ('C_f', '前悬架阻尼', 'N·s/m'),
-            ('C_r', '后悬架阻尼', 'N·s/m'),
-            ('lever_ratio_f', '前悬架杠杆比', ''),
-            ('lever_ratio_r', '后悬架杠杆比', ''),
+            ('m_b',          '车身质量',     'kg'),
+            ('I_p',          '俯仰惯量',     'kg·m²'),
+            ('I_r',          '侧倾惯量',     'kg·m²'),
+            ('a',            '前轴距离',     'm'),
+            ('b',            '后轴距离',     'm'),
+            ('B_f',          '前轮距',       'm'),
+            ('B_r',          '后轮距',       'm'),
+            ('C_f',          '前悬架阻尼',   'N·s/mm'),  # ← N·s/mm
+            ('C_r',          '后悬架阻尼',   'N·s/mm'),  # ← N·s/mm
+            ('lever_ratio_f','前悬架杠杆比', ''),
+            ('lever_ratio_r','后悬架杠杆比', ''),
         ]
 
         for i, (key, label, unit) in enumerate(params):
             layout.addWidget(QLabel(label), i, 0)
             if key == 'C_f':
-                default_val = 1500
+                default_val = 1.5           # 1500 N·s/m → 1.5 N·s/mm
             elif key == 'C_r':
-                default_val = 1800
-            elif key == 'lever_ratio_f':
-                default_val = 1.0
-            elif key == 'lever_ratio_r':
+                default_val = 1.8           # 1800 N·s/m → 1.8 N·s/mm
+            elif key in ('lever_ratio_f', 'lever_ratio_r'):
                 default_val = 1.0
             else:
                 default_val = self.default_params.get(key, '')
@@ -225,7 +208,7 @@ class SeparateStiffnessWindow(QMainWindow):
         header_m = QLabel("质量(kg)")
         header_m.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header_m, 0, 1)
-        header_k = QLabel("刚度(N/m)")
+        header_k = QLabel("刚度(N/mm)")               # ← N/mm
         header_k.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header_k, 0, 2)
         header_f = QLabel("频率(Hz)")
@@ -233,10 +216,10 @@ class SeparateStiffnessWindow(QMainWindow):
         layout.addWidget(header_f, 0, 3)
 
         wheels = [
-            ('A', '前左', 40, 200000),
-            ('B', '前右', 40, 200000),
-            ('C', '后左', 45, 200000),
-            ('D', '后右', 45, 200000),
+            ('A', '前左', 40, 200),     # 200000 N/m → 200 N/mm
+            ('B', '前右', 40, 200),
+            ('C', '后左', 80, 200),
+            ('D', '后右', 80, 200),
         ]
 
         for i, (suffix, label, m_default, k_default) in enumerate(wheels):
@@ -268,9 +251,9 @@ class SeparateStiffnessWindow(QMainWindow):
         """频率约束参数组"""
         group = QGroupBox("频率约束与搜索")
         group.setMinimumWidth(290)
-        group.setMinimumHeight(300)          # ★ 只加高这一个
+        group.setMinimumHeight(300)
         layout = QGridLayout(group)
-        layout.setVerticalSpacing(8)        # ★ 行间距让内容不拥挤
+        layout.setVerticalSpacing(8)
         layout.setColumnMinimumWidth(0, 120)
         layout.setColumnMinimumWidth(1, 90)
 
@@ -296,7 +279,7 @@ class SeparateStiffnessWindow(QMainWindow):
         layout.addWidget(line1, 2, 0, 1, 3)
 
         layout.addWidget(QLabel("轮胎频率最小"), 3, 0)
-        self.f_tire_min = _freq_edit("10")
+        self.f_tire_min = _freq_edit("5")
         layout.addWidget(self.f_tire_min, 3, 1)
         layout.addWidget(QLabel("Hz"), 3, 2)
 
@@ -310,13 +293,13 @@ class SeparateStiffnessWindow(QMainWindow):
         line2.setObjectName("separator")
         layout.addWidget(line2, 5, 0, 1, 3)
 
-        layout.addWidget(QLabel("前后比 k_f/k_r 最小"), 6, 0)
-        self.ratio_min = QLineEdit("0.7")
+        layout.addWidget(QLabel("前后刚度比最小"), 6, 0)
+        self.ratio_min = QLineEdit("1")
         self.ratio_min.setMinimumWidth(90)
         layout.addWidget(self.ratio_min, 6, 1)
 
-        layout.addWidget(QLabel("前后比 k_f/k_r 最大"), 7, 0)
-        self.ratio_max = QLineEdit("1.3")
+        layout.addWidget(QLabel("前后刚度比最大"), 7, 0)
+        self.ratio_max = QLineEdit("2")
         self.ratio_max.setMinimumWidth(90)
         layout.addWidget(self.ratio_max, 7, 1)
 
@@ -326,23 +309,22 @@ class SeparateStiffnessWindow(QMainWindow):
         layout.addWidget(self.n_points, 8, 1)
         layout.addWidget(QLabel("(总计N²，全显)"), 8, 2)
 
-        # ── 悬架动挠度约束 ──
         line3 = QFrame()
         line3.setFrameShape(QFrame.Shape.HLine)
         line3.setObjectName("separator")
         layout.addWidget(line3, 9, 0, 1, 3)
 
         from PyQt6.QtWidgets import QCheckBox
-        self.defl_check = QCheckBox("启用动挠度约束")
+        self.defl_check = QCheckBox("启用弹簧变化量约束")
         self.defl_check.setChecked(True)
         self.defl_check.toggled.connect(lambda c: self.defl_limit_edit.setEnabled(c))
         layout.addWidget(self.defl_check, 10, 0, 1, 2)
 
-        layout.addWidget(QLabel("|zs−zu|max ≤"), 11, 0)
-        self.defl_limit_edit = QLineEdit("80")   # ★ 单位 mm
+        layout.addWidget(QLabel("弹簧变化量 ≤"), 11, 0)
+        self.defl_limit_edit = QLineEdit("80")
         self.defl_limit_edit.setMinimumWidth(90)
         layout.addWidget(self.defl_limit_edit, 11, 1)
-        layout.addWidget(QLabel("mm"), 11, 2)    # ★ 单位改 mm
+        layout.addWidget(QLabel("mm"), 11, 2)
 
         return group
 
@@ -352,7 +334,7 @@ class SeparateStiffnessWindow(QMainWindow):
         layout = QGridLayout(group)
 
         layout.addWidget(QLabel("车速"), 0, 0)
-        self.speed_input = QLineEdit("20")
+        self.speed_input = QLineEdit("6")
         self.speed_input.setFixedWidth(80)
         layout.addWidget(self.speed_input, 0, 1)
         layout.addWidget(QLabel("m/s"), 0, 2)
@@ -360,7 +342,7 @@ class SeparateStiffnessWindow(QMainWindow):
         layout.addWidget(QLabel("路面等级"), 1, 0)
         self.road_combo = QComboBox()
         self.road_combo.addItems(['A', 'B', 'C', 'D', 'E'])
-        self.road_combo.setCurrentText('C')
+        self.road_combo.setCurrentText('B')
         self.road_combo.setFixedWidth(80)
         layout.addWidget(self.road_combo, 1, 1)
 
@@ -372,12 +354,12 @@ class SeparateStiffnessWindow(QMainWindow):
 
         info = QLabel(
             "前后比说明:\n"
-            "k_f/k_r < 1: 后硬前软\n"
-            "k_f/k_r = 1: 前后相同\n"
-            "k_f/k_r > 1: 前硬后软\n\n"
+            " < 1: 后硬前软\n"
+            " = 1: 前后相同\n"
+            " > 1: 前硬后软\n\n"
             "杠杆比: >1放大 =1直连\n"
             "路面: A优 B良 C一般\n"
-            "⚠ 点数N时总计N²组"
+            "点数N时总计N²组"
         )
         info.setObjectName("info")
         layout.addWidget(info, 3, 0, 1, 3)
@@ -403,9 +385,7 @@ class SeparateStiffnessWindow(QMainWindow):
                 border: 1px solid #3b4252; border-radius: 8px;
                 margin-top: 10px; padding: 12px; background-color: #2d3548;
             }
-            QGroupBox::title {
-                subcontrol-origin: margin; left: 10px; padding: 0 6px;
-            }
+            QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px; }
             QLineEdit {
                 background-color: #0f172a; border: 1px solid #3b4252;
                 border-radius: 4px; padding: 5px; color: #e0e6f0;
@@ -458,14 +438,15 @@ class SeparateStiffnessWindow(QMainWindow):
     def update_calculated_values(self):
         """更新计算结果"""
         try:
-            m_b = float(self.param_inputs['m_b'].text())
+            m_b        = float(self.param_inputs['m_b'].text())
             f_body_min = float(self.f_body_min.text())
             f_body_max = float(self.f_body_max.text())
             f_tire_min = float(self.f_tire_min.text())
             f_tire_max = float(self.f_tire_max.text())
 
             k_sum_min, k_sum_max = calc_total_stiffness_range(m_b, f_body_min, f_body_max)
-            self.k_sum_range_label.setText(f"{k_sum_min:.0f} ~ {k_sum_max:.0f} N/m")
+            # ← 显示 N/mm（内部结果 N/m ÷ 1000）
+            self.k_sum_range_label.setText(f"{k_sum_min/1000:.2f} ~ {k_sum_max/1000:.2f} N/mm")
 
             all_valid = True
             invalid_wheels = []
@@ -473,8 +454,9 @@ class SeparateStiffnessWindow(QMainWindow):
             for suffix in ['A', 'B', 'C', 'D']:
                 try:
                     m_w = float(self.param_inputs[f'm_w{suffix}'].text())
-                    k_t = float(self.param_inputs[f'k_t{suffix}'].text())
-                    f_tire = calc_tire_frequency(m_w, k_t)
+                    # ← UI 输入 N/mm，calc_tire_frequency 需要 N/m，乘以 1000
+                    k_t_nm = float(self.param_inputs[f'k_t{suffix}'].text()) * 1000
+                    f_tire = calc_tire_frequency(m_w, k_t_nm)
                     self.tire_freq_labels[suffix].setText(f"{f_tire:.1f} Hz")
 
                     if not (f_tire_min <= f_tire <= f_tire_max):
@@ -494,7 +476,7 @@ class SeparateStiffnessWindow(QMainWindow):
                 self.tire_warning_label.setText(f"⚠ 轮胎频率超出范围: {', '.join(invalid_wheels)}")
                 self.tire_warning_label.setStyleSheet("color: #f87171;")
 
-            self.calculated_k_sum_range = (k_sum_min, k_sum_max)
+            self.calculated_k_sum_range = (k_sum_min, k_sum_max)  # 内部存 N/m
 
         except ValueError:
             self.k_sum_range_label.setText("输入无效")
@@ -502,18 +484,22 @@ class SeparateStiffnessWindow(QMainWindow):
             self.calculated_k_sum_range = None
 
     def get_base_params(self):
-        """获取基础参数"""
+        """获取基础参数，将 UI 的 N/mm、N·s/mm 换算回 N/m、N·s/m"""
         params = self.default_params.copy()
 
         for key, widget in self.param_inputs.items():
             try:
                 val = float(widget.text())
                 if key == 'C_f':
-                    params['C_sA'] = params['C_sB'] = val
+                    # N·s/mm → N·s/m （×1000）
+                    params['C_sA'] = params['C_sB'] = val * 1000
                 elif key == 'C_r':
-                    params['C_sC'] = params['C_sD'] = val
-                elif key in ['m_wA', 'm_wB', 'm_wC', 'm_wD', 'k_tA', 'k_tB', 'k_tC', 'k_tD']:
+                    # N·s/mm → N·s/m （×1000）
+                    params['C_sC'] = params['C_sD'] = val * 1000
+                elif key in ['m_wA', 'm_wB', 'm_wC', 'm_wD']:
                     params[key] = val
+                elif key in ['k_tA', 'k_tB', 'k_tC', 'k_tD']:
+                    params[key] = val * 1000   # N/mm → N/m
                 elif key in ['lever_ratio_f', 'lever_ratio_r']:
                     params[key] = val
                 else:
@@ -523,7 +509,7 @@ class SeparateStiffnessWindow(QMainWindow):
 
         try:
             params['vehicle_speed'] = float(self.speed_input.text())
-            params['duration'] = float(self.duration_input.text())
+            params['duration']      = float(self.duration_input.text())
         except ValueError:
             pass
         params['road_class'] = self.road_combo.currentText()
@@ -537,7 +523,7 @@ class SeparateStiffnessWindow(QMainWindow):
             return
 
         try:
-            n_points = int(self.n_points.text())
+            n_points  = int(self.n_points.text())
             ratio_min = float(self.ratio_min.text())
             ratio_max = float(self.ratio_max.text())
             if n_points < 2:
@@ -557,13 +543,12 @@ class SeparateStiffnessWindow(QMainWindow):
 
         base_params = self.get_base_params()
 
-        # ★ 读取动挠度约束（输入单位 mm，内部换算为 m）
         defl_limit = None
         if self.defl_check.isChecked():
             try:
                 defl_limit = float(self.defl_limit_edit.text()) / 1000.0
             except ValueError:
-                QMessageBox.warning(self, "输入错误", "动挠度限制值无效")
+                QMessageBox.warning(self, "输入错误", "弹簧变化量限制值无效")
                 self.search_btn.setEnabled(True)
                 self.search_btn.setText("开始扫描RMS")
                 return
@@ -586,7 +571,7 @@ class SeparateStiffnessWindow(QMainWindow):
         self.status_label.setText(status)
 
     def display_results(self, results):
-        """显示结果 - 按RMS排序，全量显示"""
+        """显示结果，刚度列以 N/mm 显示，按RMS排序"""
         results.sort(key=lambda x: x['rms'])
 
         defl_limit = None
@@ -599,11 +584,12 @@ class SeparateStiffnessWindow(QMainWindow):
         self.results_table.setRowCount(len(results))
 
         for i, r in enumerate(results):
-            item_kf = QTableWidgetItem(f"{r['k_f']:.0f}")
+            # ← k_f / k_r 由内部 N/m 转换为 N/mm 显示
+            item_kf = QTableWidgetItem(f"{r['k_f']/1000:.3f}")
             item_kf.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(i, 0, item_kf)
 
-            item_kr = QTableWidgetItem(f"{r['k_r']:.0f}")
+            item_kr = QTableWidgetItem(f"{r['k_r']/1000:.3f}")
             item_kr.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(i, 1, item_kr)
 
@@ -615,7 +601,6 @@ class SeparateStiffnessWindow(QMainWindow):
             item_f.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(i, 3, item_f)
 
-            # ★ 动挠度列
             defl = r.get('max_defl', 0.0)
             item_d = QTableWidgetItem(f"{defl*1000:.1f} mm")
             item_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -634,7 +619,7 @@ class SeparateStiffnessWindow(QMainWindow):
             self.results_table.setItem(i, 5, item_rms)
 
             rms = r['rms']
-            if rms < 0.315:
+            if rms < 0.35:
                 rating, color = "舒适", QColor("#4ade80")
             elif rms < 0.63:
                 rating, color = "稍不舒适", QColor("#a3e635")
@@ -651,23 +636,12 @@ class SeparateStiffnessWindow(QMainWindow):
             self.results_table.setItem(i, 6, item_rating)
 
         if results:
-            rms_vals  = [r['rms'] for r in results]
-            defl_vals = [r.get('max_defl', 0) for r in results]
-            best = results[0]
-
-            self._best_result = best
+            self._best_result = results[0]   # 已按 RMS 升序排列
             self.send_btn.setEnabled(True)
-
-            defl_info = ""
-            if defl_limit:
-                defl_info = f" | 挠度: {min(defl_vals)*1000:.1f}~{max(defl_vals)*1000:.1f} mm (限制 {defl_limit*1000:.0f} mm)"
-
-            self.summary_label.setText(
-                f"扫描完成 "
-            )
+            self.summary_label.setText("扫描完成")
             self.summary_label.setStyleSheet("color: #4ade80;")
         else:
-            self.summary_label.setText("⚠ 所有方案均超出动挠度限制，请放宽约束或调整刚度范围")
+            self.summary_label.setText("⚠ 所有方案均超出弹簧变化量限制，请放宽约束或调整刚度范围")
             self.summary_label.setStyleSheet("color: #f87171;")
 
         self.search_btn.setEnabled(True)

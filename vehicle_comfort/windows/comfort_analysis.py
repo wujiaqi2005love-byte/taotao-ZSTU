@@ -108,18 +108,18 @@ class ComfortAnalysisWindow(BaseWindow):
         layout = QGridLayout(group)
         
         # 弹簧刚度
-        layout.addWidget(QLabel("弹簧刚度 (N/m)"), 0, 0)
+        layout.addWidget(QLabel("弹簧刚度 (N/mm)"), 0, 0)
         for i, suffix in enumerate(['A', 'B', 'C', 'D']):
             key = f'k_s{suffix}'
-            edit = QLineEdit(str(self.default_params[key]))
+            edit = QLineEdit(str(self.default_params[key] / 1000))
             self.param_inputs[key] = edit
             layout.addWidget(edit, 0, i + 1)
         
         # 阻尼系数
-        layout.addWidget(QLabel("阻尼系数 (N·s/m)"), 1, 0)
+        layout.addWidget(QLabel("阻尼系数 (N·s/mm)"), 1, 0)
         for i, suffix in enumerate(['A', 'B', 'C', 'D']):
             key = f'C_s{suffix}'
-            edit = QLineEdit(str(self.default_params[key]))
+            edit = QLineEdit(str(self.default_params[key]/1000))
             self.param_inputs[key] = edit
             layout.addWidget(edit, 1, i + 1)
         
@@ -132,10 +132,10 @@ class ComfortAnalysisWindow(BaseWindow):
             layout.addWidget(edit, 2, i + 1)
         
         # 轮胎刚度
-        layout.addWidget(QLabel("轮胎刚度 (N/m)"), 3, 0)
+        layout.addWidget(QLabel("轮胎刚度 (N/mm)"), 3, 0)
         for i, suffix in enumerate(['A', 'B', 'C', 'D']):
             key = f'k_t{suffix}'
-            edit = QLineEdit(str(self.default_params[key]))
+            edit = QLineEdit(str(self.default_params[key]/1000))
             self.param_inputs[key] = edit
             layout.addWidget(edit, 3, i + 1)
         
@@ -225,6 +225,10 @@ class ComfortAnalysisWindow(BaseWindow):
                         params[key] = float(widget.text())
                 except ValueError:
                     params[key] = self.default_params.get(key, 0)
+        for key in list(params.keys()):
+            if key.startswith('k_s') or key.startswith('k_t') or key.startswith('C_s'):
+                if isinstance(params[key], (int, float)):
+                    params[key] = params[key] * 1000
         return params
 
     def reset_params(self):

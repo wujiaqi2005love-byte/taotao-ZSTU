@@ -175,7 +175,7 @@ def get_comfort_rating(a_rms):
     Returns:
         (rating, color): 评价文本和颜色
     """
-    if a_rms < 0.315:
+    if a_rms < 0.35:
         return "舒适 Comfortable", "#4ade80"
     elif a_rms < 0.63:
         return "稍不舒适 Slightly Uncomfortable", "#a3e635"

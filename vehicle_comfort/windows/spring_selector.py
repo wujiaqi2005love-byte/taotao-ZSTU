@@ -191,24 +191,10 @@ class SpringSelectorWindow(BaseWindow):
         self.delta_edit = QLineEdit("50")
         sys_layout.addWidget(self.delta_edit, 2, 1)
 
-
         sys_layout.addWidget(QLabel("端部密圈系数"), 3, 0)
         self.end_coeff_edit = QLineEdit("1.0")
         self.end_coeff_edit.setPlaceholderText("0.6~1.0")
         sys_layout.addWidget(self.end_coeff_edit, 3, 1)
-
-        # ── 预压缩量输入 ──
-        pre_group = QGroupBox("四方位弹簧预压缩量 (mm)")
-        pre_layout = QGridLayout(pre_group)
-        self.preload_edits = {}
-        pos_labels = ["左前", "右前", "左后", "右后"]
-        for i, label in enumerate(pos_labels):
-            pre_layout.addWidget(QLabel(label), i, 0)
-            edit = QLineEdit("0")
-            edit.setPlaceholderText("请输入预压缩量")
-            pre_layout.addWidget(edit, i, 1)
-            self.preload_edits[label] = edit
-        layout.addWidget(pre_group)
 
         layout.addWidget(sys_group)
 
@@ -411,19 +397,12 @@ class SpringSelectorWindow(BaseWindow):
 
     def _calculate(self):
         """执行弹簧选型计算"""
-
         try:
             target_k = float(self.k_target_edit.text())
             delta_max = float(self.delta_edit.text())
             mass = float(self.mass_edit.text())
             zeta = float(self.zeta_edit.text())
             end_coeff = float(self.end_coeff_edit.text())
-
-            # 读取四方位预压缩量
-            preload_values = {}
-            for pos, edit in self.preload_edits.items():
-                val = float(edit.text())
-                preload_values[pos] = val
 
             if not (0.1 <= zeta <= 0.7):
                 raise ValueError("阻尼比建议范围 0.1 ~ 0.7")
@@ -438,8 +417,6 @@ class SpringSelectorWindow(BaseWindow):
             return
 
         self.target_k_nmm = target_k
-        # 预压缩量可在此传递给后续计算或保存
-        self.preload_values = preload_values
         self.candidates = calc_spring_candidates(
             target_k_nmm=target_k,
             delta_max_mm=delta_max,
@@ -448,7 +425,6 @@ class SpringSelectorWindow(BaseWindow):
             end_coeff=end_coeff,
             G=G,
             tau_allow=tau_allow
-            # 如需传递预压缩量，可在此添加参数
         )
 
         if not self.candidates:
