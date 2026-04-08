@@ -154,8 +154,8 @@ class ComfortAnalysisWindow(BaseWindow):
         group = QGroupBox("仿真参数")
         layout = QGridLayout(group)
         
-        layout.addWidget(QLabel("车速 (m/s)"), 0, 0)
-        speed_edit = QLineEdit(str(self.default_params['vehicle_speed']))
+        layout.addWidget(QLabel("车速 (m/s)"), 0, 0) #车速默认值设置为5m/s，即18km/h
+        speed_edit = QLineEdit(str(self.default_params['vehicle_speed']))#默认值设置为5m/s，即18km/h
         self.param_inputs['vehicle_speed'] = speed_edit
         layout.addWidget(speed_edit, 0, 1)
         

@@ -115,7 +115,7 @@ class ComfortAnalysisThread(QObject):
             duration_road = p.get('duration', 10) + 3
             road = _create_road(
                 p.get('road_class', 'C'),
-                p.get('vehicle_speed', 20),
+                p.get('vehicle_speed', 5),
                 duration_road, n_samples=12000, seed=int(seed)
             )
             roads = {'A': road, 'B': road, 'C': road, 'D': road}
@@ -226,7 +226,7 @@ class UniformStiffnessSearchThread(QObject):
             p = self.base_params
             duration_road = p.get('duration', 10) + 3
             road = _create_road(p.get('road_class', 'C'),
-                                p.get('vehicle_speed', 20),
+                                p.get('vehicle_speed', 5),
                                 duration_road, n_samples=8000, seed=42)
             self._roads = {'A': road, 'B': road, 'C': road, 'D': road}
 
@@ -331,7 +331,7 @@ class SeparateStiffnessSearchThread(QObject):
             p = self.base_params
             duration_road = p.get('duration', 10) + 3
             road = _create_road(p.get('road_class', 'C'),
-                                p.get('vehicle_speed', 20),
+                                p.get('vehicle_speed', 5),
                                 duration_road, n_samples=8000, seed=42)
             self._roads = {'A': road, 'B': road, 'C': road, 'D': road}
 

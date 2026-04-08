@@ -206,6 +206,7 @@ def wahl_factor(C: float) -> float:
 def calc_spring_candidates(
     target_k_nmm: float,
     delta_max_mm: float,
+    preload_mm: float,
     mass_kg: float,
     zeta: float,
     end_coeff: float,
@@ -219,6 +220,7 @@ def calc_spring_candidates(
     Args:
         target_k_nmm : 目标刚度 (N/mm)
         delta_max_mm : 最大压缩量 (mm)
+        preload_mm   : 预压缩量 (mm)
         mass_kg      : 等效质量 (kg)
         zeta         : 目标阻尼比
         end_coeff    : 端部密圈系数 (0.6~1.0)
@@ -235,6 +237,9 @@ def calc_spring_candidates(
     ]
     candidates = []
 
+    if preload_mm >= delta_max_mm:
+        return []
+
     for d in wire_dias:
         for Ci in range(8, 25):
             C = Ci / 2.0
@@ -250,8 +255,10 @@ def calc_spring_candidates(
             # 非等距刚度修正
             k_actual = ((G * d**4) / (8 * D**3 * Na)) / end_coeff
 
-            # 应力校核
-            F_max = target_k_nmm * delta_max_mm
+            # 预压缩及剩余行程
+            remaining_travel = round(max(delta_max_mm - preload_mm, 0.0), 2)
+            preload_force = k_actual * preload_mm
+            F_max = k_actual * delta_max_mm
             Kw = wahl_factor(C)
             tau = (8 * F_max * D) / (math.pi * d**3) * Kw
 
@@ -277,6 +284,9 @@ def calc_spring_candidates(
                 'end_coeff': end_coeff,
                 'total_coils': round(Na + 2, 1),
                 'winding_ratio': round(C, 1),
+                'preload_mm': preload_mm,
+                'remaining_travel': remaining_travel,
+                'preload_force': round(preload_force, 1),
             })
 
     return candidates

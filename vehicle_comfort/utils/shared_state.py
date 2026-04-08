@@ -51,7 +51,7 @@ class SharedState:
         self.source_description: str = ""   # 来源描述
         self.vehicle_mass: float = None     # 车身质量 kg
         self.road_class: str = "C"          # 路面等级
-        self.vehicle_speed: float = 20.0    # 车速 m/s
+        self.vehicle_speed: float = 5.0    # 车速 m/s
 
     def set_stiffness(
         self,
@@ -61,7 +61,7 @@ class SharedState:
         source: str = "",
         vehicle_mass: float = None,
         road_class: str = "C",
-        vehicle_speed: float = 20.0
+        vehicle_speed: float = 5.0
     ):
         """
         设置刚度数据并广播信号
@@ -119,7 +119,7 @@ class SharedState:
         self.source_description = ""
         self.vehicle_mass = None
         self.road_class = "C"
-        self.vehicle_speed = 20.0
+        self.vehicle_speed = 5
 
     def __repr__(self):
         if self.has_data():

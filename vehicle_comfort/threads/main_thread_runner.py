@@ -37,7 +37,7 @@ class MainThreadSearchRunner(QObject):
         np.random.seed(42)
         self._road = RoadExcitation(
             p.get('road_class', 'C'),
-            p.get('vehicle_speed', 20),
+            p.get('vehicle_speed', 5),
             duration_road, n_samples=8000
         )
         self._roads = {

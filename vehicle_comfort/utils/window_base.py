@@ -35,7 +35,7 @@ DEFAULT_VEHICLE_PARAMS = {
     'k_tD': 200000, # 后右轮胎刚度 (N/m)
     'lever_ratio_f': 1.0,  # 前悬架杠杆比
     'lever_ratio_r': 1.0,  # 后悬架杠杆比
-    'vehicle_speed': 20,    # 车速 (m/s)
+    'vehicle_speed': 5,    # 车速 (m/s)
     'road_class': 'C',      # 路面等级
     'duration': 10,         # 仿真时长 (s)
     'random_seed': None,    # 随机种子

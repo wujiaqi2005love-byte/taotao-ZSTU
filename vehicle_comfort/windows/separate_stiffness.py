@@ -76,11 +76,6 @@ class SeparateStiffnessWindow(QMainWindow):
         # 按钮
         btn_layout = QHBoxLayout()
 
-        self.calc_btn = QPushButton("计算刚度范围")
-        self.calc_btn.setObjectName("calcButton")
-        self.calc_btn.clicked.connect(self.update_calculated_values)
-        btn_layout.addWidget(self.calc_btn)
-
         self.search_btn = QPushButton("开始扫描RMS")
         self.search_btn.setObjectName("searchButton")
         self.search_btn.clicked.connect(self.start_search)
@@ -118,7 +113,10 @@ class SeparateStiffnessWindow(QMainWindow):
             "车身频率 (Hz)", "弹簧变化量峰值 (mm)", "质心加速度 RMS (m/s²)", "舒适性评价"
         ])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.results_table.setAlternatingRowColors(True)
+        self.results_table.setAlternatingRowColors(False)
+        self.results_table.setStyleSheet(
+            "QTableWidget { background-color: #0f172a; alternate-background-color: #0f172a; }"
+        )
         self.results_table.setMinimumHeight(220)
         results_layout.addWidget(self.results_table)
 
@@ -334,7 +332,7 @@ class SeparateStiffnessWindow(QMainWindow):
         layout = QGridLayout(group)
 
         layout.addWidget(QLabel("车速"), 0, 0)
-        self.speed_input = QLineEdit("6")
+        self.speed_input = QLineEdit("5")
         self.speed_input.setFixedWidth(80)
         layout.addWidget(self.speed_input, 0, 1)
         layout.addWidget(QLabel("m/s"), 0, 2)
