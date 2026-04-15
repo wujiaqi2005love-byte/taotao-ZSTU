@@ -90,7 +90,7 @@ def calc_total_stiffness_range(m_b, f_min, f_max):
     """
     k_total_min = (2 * np.pi * f_min) ** 2 * m_b
     k_total_max = (2 * np.pi * f_max) ** 2 * m_b
-    return k_total_min / 2, k_total_max / 2
+    return k_total_min / 4, k_total_max / 4
 
 
 def calc_rms_for_uniform_stiffness(base_params, k_s):
@@ -267,8 +267,8 @@ def calc_spring_candidates(
 
             margin_pct = (tau_allow - tau) / tau_allow * 100
 
-            # 阻尼系数
-            c_damper = 2 * zeta * math.sqrt(k_actual * 1000 * mass_kg)
+            # 推荐阻尼系数
+            c_damper = 2 * zeta * math.sqrt(k_actual * 1000 * mass_kg) / 1000
 
             k_deviation = abs(k_actual - target_k_nmm) / target_k_nmm * 100
 

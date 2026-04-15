@@ -133,7 +133,7 @@ class SpringSelectorWindow(BaseWindow):
         self.mass_edit.setStyleSheet("color: #94a3b8; background-color: #1f2937;")
         sys_layout.addWidget(self.mass_edit, 0, 1)
 
-        sys_layout.addWidget(QLabel("阻尼比 ζ (0.25~0.4)"), 1, 0)
+        sys_layout.addWidget(QLabel("阻尼比(0.25~0.4)"), 1, 0)
         self.zeta_edit = QLineEdit("0.3")
         self.zeta_edit.setFixedHeight(25)
         sys_layout.addWidget(self.zeta_edit, 1, 1)
@@ -152,21 +152,29 @@ class SpringSelectorWindow(BaseWindow):
 
         # 预压缩建议按钮
         self.suggest_preload_btn = QPushButton("💡 建议预压缩范围")
-        self.suggest_preload_btn.setFixedHeight(50)
+        self.suggest_preload_btn.setFixedHeight(34)
+        self.suggest_preload_btn.setFixedWidth(170)
         self.suggest_preload_btn.setStyleSheet("""
             QPushButton {
-                background-color: #1e40af;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2563eb, stop:1 #4338ca
+                );
                 color: white;
                 border: none;
-                border-radius: 4px;
-                font-size: 11px;
+                border-radius: 6px;
+                font-size: 12px;
+                padding: 6px 10px;
             }
             QPushButton:hover {
-                background-color: #3b82f6;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #3b82f6, stop:1 #6366f1
+                );
             }
         """)
         self.suggest_preload_btn.clicked.connect(self._suggest_preload)
-        sys_layout.addWidget(self.suggest_preload_btn, 3, 2)
+        sys_layout.addWidget(self.suggest_preload_btn, 3, 2, 1, 1, Qt.AlignmentFlag.AlignVCenter)
 
         sys_layout.addWidget(QLabel("端部密圈系数"), 4, 0)
         self.end_coeff_edit = QLineEdit("1.0")
@@ -561,7 +569,7 @@ class SpringSelectorWindow(BaseWindow):
                 f"预压缩 = {c['preload_mm']} mm　预压缩力 = {c['preload_force']} N",
                 f"剩余可动行程 = {c['remaining_travel']} mm　实际刚度 = {c['actual_k']} N/mm",
                 f"剪应力 = {c['tau']} MPa　　应力裕度 = {c['margin_pct']}%",
-                f"推荐阻尼系数 c = {c['c_damper']} N·s/m",
+                f"推荐阻尼系数 c = {c['c_damper']} N·s/mm",
             ]
             param_colors = [
                 "#e0e6f0", "#94a3b8", "#60a5fa",

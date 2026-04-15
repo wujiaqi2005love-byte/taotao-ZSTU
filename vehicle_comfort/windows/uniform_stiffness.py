@@ -112,7 +112,7 @@ class UniformStiffnessWindow(QMainWindow):
         self.results_table = QTableWidget()
         self.results_table.setColumnCount(5)
         self.results_table.setHorizontalHeaderLabels([
-            "弹簧刚度 k_s (N/mm)", "车身频率 (Hz)",    # ← N/mm
+            "弹簧刚度 (N/mm)", "车身频率 (Hz)",    # ← N/mm
             "弹簧变化量峰值 (mm)", "质心加速度 RMS (m/s²)", "舒适性评价"
         ])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -180,7 +180,7 @@ class UniformStiffnessWindow(QMainWindow):
         layout = QGridLayout(group)
 
         params = [
-            ('m_b',          '车身质量',     'kg'),
+            ('m_b',          '车身质量（可修改）',     'kg'),
             ('I_p',          '俯仰惯量',     'kg·m²'),
             ('I_r',          '侧倾惯量',     'kg·m²'),
             ('a',            '前轴距离',     'm'),
@@ -188,8 +188,8 @@ class UniformStiffnessWindow(QMainWindow):
             ('B_f',          '前轮距',       'm'),
             ('B_r',          '后轮距',       'm'),
             ('C_s',          '悬架阻尼',     'N·s/mm'),  # ← N·s/mm
-            ('lever_ratio_f','前悬架杠杆比', ''),
-            ('lever_ratio_r','后悬架杠杆比', ''),
+            ('lever_ratio_f','前悬架杠杆比（可修改）', ''),
+            ('lever_ratio_r','后悬架杠杆比（可修改）', ''),
         ]
 
         for i, (key, label, unit) in enumerate(params):
@@ -202,7 +202,7 @@ class UniformStiffnessWindow(QMainWindow):
                 default_val = self.default_params.get(key, '')
 
             edit = QLineEdit(str(default_val))
-            edit.setFixedWidth(80)
+            edit.setFixedWidth(110)
             edit.setAlignment(Qt.AlignmentFlag.AlignRight)
             edit.textChanged.connect(self.update_calculated_values)
             self.param_inputs[key] = edit
@@ -285,13 +285,13 @@ class UniformStiffnessWindow(QMainWindow):
             e.textChanged.connect(self.update_calculated_values)
             return e
 
-        layout.addWidget(QLabel("车身频率最小"), 0, 0)
-        self.f_body_min = _freq_edit("1.0")
+        layout.addWidget(QLabel("车身频率最小（可修改）"), 0, 0)
+        self.f_body_min = _freq_edit("1.8")
         layout.addWidget(self.f_body_min, 0, 1)
         layout.addWidget(QLabel("Hz"), 0, 2)
 
-        layout.addWidget(QLabel("车身频率最大"), 1, 0)
-        self.f_body_max = _freq_edit("1.5")
+        layout.addWidget(QLabel("车身频率最大（可修改）"), 1, 0)
+        self.f_body_max = _freq_edit("2.2")
         layout.addWidget(self.f_body_max, 1, 1)
         layout.addWidget(QLabel("Hz"), 1, 2)
 
@@ -311,7 +311,7 @@ class UniformStiffnessWindow(QMainWindow):
         layout.addWidget(QLabel("Hz"), 4, 2)
 
         layout.addWidget(QLabel("搜索点数"), 5, 0)
-        self.n_points = QLineEdit("30")
+        self.n_points = QLineEdit("20")
         self.n_points.setMinimumWidth(90)
         layout.addWidget(self.n_points, 5, 1)
         layout.addWidget(QLabel("（全部显示）"), 5, 2)
@@ -327,7 +327,7 @@ class UniformStiffnessWindow(QMainWindow):
         self.defl_check.toggled.connect(lambda c: self.defl_limit_edit.setEnabled(c))
         layout.addWidget(self.defl_check, 7, 0, 1, 2)
 
-        layout.addWidget(QLabel("弹簧变化量 ≤"), 8, 0)
+        layout.addWidget(QLabel("弹簧总行程 ≤"), 8, 0)
         self.defl_limit_edit = QLineEdit("80")
         self.defl_limit_edit.setMinimumWidth(90)
         layout.addWidget(self.defl_limit_edit, 8, 1)

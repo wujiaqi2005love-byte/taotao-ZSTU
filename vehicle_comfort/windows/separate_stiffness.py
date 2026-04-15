@@ -136,8 +136,8 @@ class SeparateStiffnessWindow(QMainWindow):
         k_optimal = (best['k_f'] + best['k_r']) / 2  # N/m（内部值）
 
         shared_state.set_stiffness(
-            k_min=self.calculated_k_sum_range[0] * 1000,
-            k_max=self.calculated_k_sum_range[1] * 1000,
+            k_min=self.calculated_k_sum_range[0],
+            k_max=self.calculated_k_sum_range[1],
             k_optimal=k_optimal,
             source=f"前后分离搜索 | 路面{base_params['road_class']} | "
                    f"k_f={best['k_f']/1000:.3f} k_r={best['k_r']/1000:.3f} N/mm "  # ← N/mm
@@ -263,7 +263,7 @@ class SeparateStiffnessWindow(QMainWindow):
 
         def _freq_edit(default):
             e = QLineEdit(default)
-            e.setMinimumWidth(90)
+            e.setMinimumWidth(110)
             e.textChanged.connect(self.update_calculated_values)
             return e
 
@@ -299,17 +299,17 @@ class SeparateStiffnessWindow(QMainWindow):
 
         layout.addWidget(QLabel("前后刚度比最小"), 6, 0)
         self.ratio_min = QLineEdit("1")
-        self.ratio_min.setMinimumWidth(90)
+        self.ratio_min.setMinimumWidth(110)
         layout.addWidget(self.ratio_min, 6, 1)
 
         layout.addWidget(QLabel("前后刚度比最大"), 7, 0)
         self.ratio_max = QLineEdit("2")
-        self.ratio_max.setMinimumWidth(90)
+        self.ratio_max.setMinimumWidth(110)
         layout.addWidget(self.ratio_max, 7, 1)
 
         layout.addWidget(QLabel("每轴搜索点数"), 8, 0)
         self.n_points = QLineEdit("12")
-        self.n_points.setMinimumWidth(90)
+        self.n_points.setMinimumWidth(110)
         layout.addWidget(self.n_points, 8, 1)
         layout.addWidget(QLabel("(总计N²，全显)"), 8, 2)
 
@@ -623,7 +623,7 @@ class SeparateStiffnessWindow(QMainWindow):
             self.results_table.setItem(i, 5, item_rms)
 
             rms = r['rms']
-            if rms < 0.35:
+            if rms < 0.45:#0.35
                 rating, color = "舒适", QColor("#4ade80")
             elif rms < 0.63:
                 rating, color = "稍不舒适", QColor("#a3e635")
