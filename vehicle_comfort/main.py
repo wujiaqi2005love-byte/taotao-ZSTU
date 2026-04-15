@@ -21,6 +21,7 @@ def main():
         QPushButton, QLabel, QFrame
     )
     from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QFont as QFont2
 
     from windows.comfort_analysis import ComfortAnalysisWindow
     from windows.uniform_stiffness import UniformStiffnessWindow
@@ -33,7 +34,7 @@ def main():
         def __init__(self):
             super().__init__()
             self.setWindowTitle("高尔夫球车舒适性分析与减震弹簧选型设计综合软件")
-            self.setMinimumSize(850, 700)  # 稍微增大窗口，让布局更舒展
+            self.setMinimumSize(750, 620)
             self._child_windows = {}
             self._setup_ui()
             self._apply_styles()
@@ -45,83 +46,65 @@ def main():
             central = QWidget()
             self.setCentralWidget(central)
             layout = QVBoxLayout(central)
-            layout.setSpacing(25)  # 增大间距，更透气
-            layout.setContentsMargins(70, 50, 70, 50)  # 增大边距
+            layout.setSpacing(18)
+            layout.setContentsMargins(50, 35, 50, 35)
 
-            # 标题 - 更大更醒目
+            # 标题
             title = QLabel("高尔夫球车舒适性分析与减震弹簧选型设计综合软件")
             title.setObjectName("title")
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(title)
 
-            # 分隔线 - 更纤细美观
+            subtitle = QLabel(
+                "Vehicle Dynamics Analysis & Spring Selection Integrated Platform\n"
+                "ISO 8608 路面激励模拟  ·  ISO 2631 车辆舒适性分析  ·  七自由度动力学模型"
+            )
+            subtitle.setObjectName("subtitle")
+            subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(subtitle)
+
+            # 分隔线
             line = QFrame()
             line.setFrameShape(QFrame.Shape.HLine)
-            line.setStyleSheet("background-color: #475569; max-height: 1px;")
+            line.setStyleSheet("background-color: #3b4252; max-height: 1px;")
             layout.addWidget(line)
 
             # 功能按钮配置
             buttons = [
                 (
-                    "舒适性分析",
-                    "单次仿真 · ISO 2631 评价四座位加速度",
+                    "    车辆舒适度分析",
                     self._open_comfort
                 ),
                 (
-                    "四轮统一刚度搜索",
-                    "频率约束 + RMS扫描 · 一键发送到弹簧选型",
+                    "    四轮统一刚度搜索",
                     self._open_uniform
                 ),
                 (
-                    "前后分离刚度搜索",
-                    "二维参数空间优化 · 前后比例约束",
+                    "    前后分离刚度搜索",
                     self._open_separate
                 ),
                 (
-                    "弹簧选型系统",
-                    "自动接收最优刚度 · 输出弹簧规格",
+                    "    弹簧选型系统",
                     self._open_spring
                 ),
             ]
 
-            # ========== 【全新设计】完全透明的悬浮按钮 ==========
-            for title_text, desc_text, slot in buttons:
-                btn = QPushButton()
+            for text, slot in buttons:
+                btn = QPushButton(text)
                 btn.setObjectName("menuButton")
-                btn.setMinimumHeight(100)  # 增大按钮尺寸
+                btn.setMinimumHeight(90)
                 btn.clicked.connect(slot)
-
-                # 按钮内部布局
-                v_layout = QVBoxLayout()
-                v_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                v_layout.setSpacing(6)  # 增大标题和描述的间距
-                v_layout.setContentsMargins(0, 0, 0, 0)
-
-                # 第一行：标题 - 更大更粗
-                title_label = QLabel(title_text)
-                title_label.setStyleSheet("""
-                    font-size: 18px; 
-                    font-weight: bold; 
-                    color: #ffffff;
-                """)
-                title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-                # 第二行：描述 - 更精致
-                desc_label = QLabel(desc_text)
-                desc_label.setStyleSheet("""
-                    font-size: 13px; 
-                    color: #ffffff;
-                """)
-                desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-                v_layout.addWidget(title_label)
-                v_layout.addWidget(desc_label)
-                btn.setLayout(v_layout)
-
                 layout.addWidget(btn)
-            # ======================================================
 
-            layout.addStretch(1)  # 增加弹性空间
+            layout.addStretch()
+
+            # 数据流说明
+            flow = QLabel(
+                "数据流向：  刚度搜索窗口——>发送最优刚度——>弹簧选型系统"
+            )
+            flow.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            flow.setStyleSheet("color: #475569; font-size: 11px;")
+            layout.addWidget(flow)
 
             # 状态栏
             self.status_bar = QLabel("系统就绪 · 建议从刚度搜索开始")
@@ -131,58 +114,51 @@ def main():
 
         def _apply_styles(self):
             self.setStyleSheet("""
-                /* 主背景 - 使用深蓝色背景 */
-                QMainWindow { 
-                    background-color: #0f172a; 
-                }
-                QWidget { 
-                    background-color: #0f172a; 
-                    color: #ffffff; 
-                }
-
-                /* 标题样式 */
+                QMainWindow { background-color: #0f172a; }
+                QWidget { background-color: #0f172a; color: #e0e6f0; }
                 QLabel#title {
-                    color: #ffffff;
-                    font-size: 24px;  /* 更大的标题 */
+                    color: #f0f9ff;
+                    font-size: 20px;
                     font-weight: bold;
-                    margin: 10px 0;
+                    margin: 8px 0;
                 }
-
-                /* 副标题样式 */
                 QLabel#subtitle {
-                    color: #94a3b8;  /* 浅灰色，有层次感 */
-                    font-size: 13px;
-                    margin-bottom: 15px;
+                    color: #64748b;
+                    font-size: 12px;
+                    margin-bottom: 8px;
                 }
-
-                /* 【关键】透明悬浮按钮样式 */
+                QLabel#statusBar {
+                    color: #4ade80;
+                    font-size: 12px;
+                    background-color: #14532d;
+                    border-radius: 6px;
+                    padding: 6px;
+                }
                 QPushButton#menuButton {
-                    /* 默认状态：完全透明 */
-                    background-color: transparent;
-                    border: 2px solid transparent; /* 透明边框占位 */
-                    border-radius: 12px; /* 圆角更现代 */
-                    color: #ffffff;
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 #1e40af, stop:1 #4c1d95
+                    );
+                    border: 1px solid #3b4252;
+                    border-radius: 10px;
+                    color: white;
+                    font-size: 24px;
+                    font-weight: bold;
                     text-align: center;
+                    padding: 15px 25px;
                 }
                 QPushButton#menuButton:hover {
-                    /* 悬停状态：浮现背景和边框 */
-                    background-color: rgba(30, 64, 175, 0.2); /* 半透明深蓝 */
-                    border: 2px solid #3b82f6; /* 亮蓝色边框 */
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 #2563eb, stop:1 #7c3aed
+                    );
+                    border-color: #60a5fa;
                 }
                 QPushButton#menuButton:pressed {
-                    /* 按下状态：背景加深 */
-                    background-color: rgba(30, 64, 175, 0.4);
-                }
-
-                /* 状态栏样式 */
-                QLabel#statusBar {
-                    color: #ffffff;
-                    font-size: 13px;
-                    background-color: rgba(20, 83, 45, 0.3); /* 半透明绿色 */
-                    border: 1px solid #10b981; /* 绿色边框 */
-                    border-radius: 8px;
-                    padding: 8px;
-                    margin-top: 10px;
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 #1e3a8a, stop:1 #3b0764
+                    );
                 }
             """)
 
@@ -214,6 +190,7 @@ def main():
                 f"✅ 刚度已更新：{k_min/1000:.2f} ~ {k_max/1000:.2f} N/mm  "
                 f"| 来源：{source[:25]}..."
             )
+            # 自动打开弹簧选型
             self._open_spring()
 
     # ★ 第三步：主窗口在 QApplication 之后创建

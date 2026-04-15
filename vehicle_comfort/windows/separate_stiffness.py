@@ -195,12 +195,18 @@ class SeparateStiffnessWindow(QMainWindow):
             layout.addWidget(unit_lbl, i, 2)
 
         return group
+    
 
     def create_tire_params(self):
         """轮胎参数组"""
         group = QGroupBox("轮胎参数 (非簧载)")
-        group.setMinimumHeight(300)
+        group.setMinimumHeight(200)
         layout = QGridLayout(group)
+
+        layout.setSpacing(12)
+        layout.setHorizontalSpacing(20)
+        layout.setVerticalSpacing(10)
+        layout.setContentsMargins(20, 14, 20, 14)
 
         layout.addWidget(QLabel(""), 0, 0)
         header_m = QLabel("质量(kg)")
@@ -224,7 +230,7 @@ class SeparateStiffnessWindow(QMainWindow):
             layout.addWidget(QLabel(label), i + 1, 0)
 
             m_edit = QLineEdit(str(m_default))
-            m_edit.setFixedWidth(65)
+            m_edit.setFixedWidth(70)
             m_edit.setAlignment(Qt.AlignmentFlag.AlignRight)
             m_edit.textChanged.connect(self.update_calculated_values)
             self.param_inputs[f'm_w{suffix}'] = m_edit

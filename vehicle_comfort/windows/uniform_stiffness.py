@@ -220,6 +220,12 @@ class UniformStiffnessWindow(QMainWindow):
         group.setMinimumHeight(300)
         layout = QGridLayout(group)
 
+        layout.setSpacing(12)
+        layout.setHorizontalSpacing(20)
+        layout.setVerticalSpacing(10)
+        layout.setContentsMargins(20, 14, 20, 14)
+
+
         layout.addWidget(QLabel(""), 0, 0)
         header_m = QLabel("质量(kg)")
         header_m.setAlignment(Qt.AlignmentFlag.AlignCenter)
